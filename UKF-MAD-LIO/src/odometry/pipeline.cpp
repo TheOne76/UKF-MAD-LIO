@@ -122,7 +122,11 @@ void Pipeline::deskew(const ContainerTypePtr& curr_cloud, const Eigen::Isometry3
   }
 }
 
-void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
+void Pipeline::compute(
+    const double&            curr_stamp, 
+    ContainerType            curr_cloud_mem,
+    const Eigen::Isometry3d& Delta) {
+  
   ContainerType* curr_cloud = &curr_cloud_mem;
   is_map_updated_           = false;
 
@@ -143,13 +147,16 @@ void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
   current_leaves_.clear();
   current_tree_->getLeafs(std::back_insert_iterator<LeafList>(current_leaves_));
 
+  // Added UKF initial guess
+  /*
   Vector6d dx = current_velocity_ * 1. / sensor_hz_;
   Eigen::Isometry3d dX;
   const Eigen::Matrix3d dR = expMapSO3(dx.tail(3));
   dX.setIdentity();
   dX.linear()                  = dR;
   dX.translation()             = dx.head(3);
-  Eigen::Isometry3d prediction = frame_to_map_ * dX;
+  */
+  Eigen::Isometry3d prediction = frame_to_map_ * Delta;
 
   icp_.setMoving(current_leaves_);
   icp_.init(prediction);
@@ -210,11 +217,12 @@ void Pipeline::compute(const double& curr_stamp, ContainerType curr_cloud_mem) {
     odom_window.push_back(trajectory_[i]);
   }
 
-  vel_estimator_.init(current_velocity_);
-  vel_estimator_.setOdometry(odom_window);
+  // --- Velocities from UKF --- 
+  //vel_estimator_.init(current_velocity_);
+  //vel_estimator_.setOdometry(odom_window);
 
-  vel_estimator_.oneRound();
-  current_velocity_ = vel_estimator_.X_;
+  //vel_estimator_.oneRound();
+  //current_velocity_ = vel_estimator_.X_;
 
   Frame* current_frame(new Frame);
   current_frame->frame_        = seq_;

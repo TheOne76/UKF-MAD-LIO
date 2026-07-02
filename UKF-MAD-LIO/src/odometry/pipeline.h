@@ -68,7 +68,10 @@ public:
   const bool isMapUpdated();
   const ContainerType currentLeaves();
   const ContainerType modelLeaves();
-  void compute(const double& curr_stamp, ContainerType curr_cloud_mem);
+  void compute(
+    const double&            curr_stamp, 
+    ContainerType            curr_cloud_mem,
+    const Eigen::Isometry3d& Delta);
   const Matrix6d& getHinfo() const { return icp_.getH(); }
   void initialize_from_RF(const double& curr_stamp, const ContainerTypePtr curr_cloud, const Eigen::Isometry3d& T);
 

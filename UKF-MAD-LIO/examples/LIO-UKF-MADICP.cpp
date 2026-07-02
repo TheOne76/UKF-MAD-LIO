@@ -299,8 +299,9 @@ void ukf_pred_and_undistort(
     double&                            last_lidar_time,
     Eigen::Matrix<double, 12, 12>&     Q,
     ContainerType&                     pcl_out, 
-    Eigen::Vector3d                    t_LI, 
-    Eigen::Matrix3d                    R_LI){
+    Eigen::Vector3d                    t_LI,
+    Eigen::Matrix3d                    R_LI,
+    Eigen::Isometry3d&                 Delta){
 
   // Ordina i punti LiDAR per timestamp relativo
   PointCloud cloud = *(lidar_meas.cloud);
@@ -356,6 +357,10 @@ void ukf_pred_and_undistort(
   imu_pos.offset_time = 0.0;
   imu_poses.push_back(imu_pos);
 
+  Eigen::Isometry3d T_begin = Eigen::Isometry3d::Identity();
+  T_begin.linear()      = ukf_state.rotation();
+  T_begin.translation() = ukf_state.position();
+
   // Forward propagation with trapezoidal integration between IMU inputs
   Vector6d in_avr;
   double dt = 0.0;
@@ -410,6 +415,10 @@ void ukf_pred_and_undistort(
   Eigen::Matrix3d R_end = ukf_state.rotation();
   Eigen::Vector3d p_end = ukf_state.position();
 
+  Eigen::Isometry3d T_end = Eigen::Isometry3d::Identity();
+  T_end.linear()      = ukf_state.rotation();
+  T_end.translation() = ukf_state.position();
+
   auto it_pcl = cloud.points.end() - 1;
 
   for (auto it_imu = imu_poses.end() - 1; it_imu != imu_poses.begin(); --it_imu) {
@@ -455,6 +464,8 @@ void ukf_pred_and_undistort(
     }
     if (it_pcl == cloud.points.begin()) break;
   }
+  // body velocities for Setting initial guess for ICP
+  Delta = T_begin.inverse() * T_end;
 }
 
 
@@ -466,7 +477,7 @@ void init_pipeline(Pipeline& pipeline, const LidarMeasurement& lidar_meas){
     pcl.emplace_back(pt.x, pt.y, pt.z);
   }
 
-  pipeline.compute(lidar_meas.timestamp, pcl);
+  pipeline.compute(lidar_meas.timestamp, pcl, Eigen::Isometry3d::Identity());
 }
 
 int main(int argc, char** argv){
@@ -615,6 +626,7 @@ int main(int argc, char** argv){
   Eigen::MatrixXd R, H;
   Eigen::Isometry3d Z;
   Vector6d z_tang;
+  Eigen::Isometry3d Delta;
   //double prev_lidar_time=0.0;
 
   std::cout << "=== STARTING FILTER LOOP ===\n";
@@ -672,10 +684,11 @@ int main(int argc, char** argv){
       continue;
     }
 
-    ukf_pred_and_undistort(ukf_lidar, ukf_state, imu_pack, lidar_meas, last_imu_meas, last_lidar_time, Q, undistort_cloud, t_LI, R_LI);
+    ukf_pred_and_undistort(ukf_lidar, ukf_state, imu_pack, lidar_meas, last_imu_meas, 
+                           last_lidar_time, Q, undistort_cloud, t_LI, R_LI, Delta);
 
     // passo la cloudpoint a MAD-ICP
-    pipeline.compute(lidar_meas.timestamp, undistort_cloud);
+    pipeline.compute(lidar_meas.timestamp, undistort_cloud, Delta);
 
     // ottengo la trasformazione rispetto alla posizione precedente e la converto nello spazio tangente
     Z = pipeline.currentPose();
@@ -771,7 +784,7 @@ int main(int argc, char** argv){
   //write_traj(out+"/gt_states.txt", gt_states, dts);
 
   vect << 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0; 
-  write_traj(out+"/UKF_LIO_s.txt",  estimates, dts, vect, 6);
+  write_traj(out+"/UKF_LIO.txt",  estimates, dts, vect, 6);
 
   //vect << 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0; 
   //write_traj_ext(out+"/est_lio_ext.txt",  estimates_extended, dts, vect, 6);
