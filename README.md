@@ -16,7 +16,7 @@ The theoretical background about MAD-ICP is described in **`MAD-ICP.pdf`**.
 
 The repository is organized into two independent components.
 
-## 1. Core C++ Implementation
+## 1. UKF-MAD-ICP: core C++ Implementation
 
 This is the main project and contains the complete implementation of the filtering framework. It can be executed directly without ROS and includes:
 
@@ -32,7 +32,7 @@ This version reads datasets directly from disk, executes the complete estimation
 
 ---
 
-## 2. ROS2 Visualization Package
+## 2. LIO_rviz: ROS2 Visualization Package
 
 A second folder contains a ROS2 package developed to visualize the LiDAR-Inertial pipeline in **RViz2**.
 
@@ -65,20 +65,20 @@ The ROS2 package is independent from the core implementation and is intended as 
 
 ```
 .
-├── core/                  # Standalone C++ implementation
+├── UKF-MAD-ICP/                  # Standalone C++ implementation
 │   ├── include/
 │   ├── src/
 │   ├── examples/
 │   ├── datasets/
 │   └── ...
 │
-├── ros2/                  # ROS2 visualization package
+├── LIO_rviz/                  # ROS2 visualization package
 │   ├── src/
-│   ├── launch/
-│   ├── rviz/
 │   └── ...
 │
+├── Master_Thesis.pdf
 ├── ukf_manifolds_notes.pdf
+├── MAD-ICP.pdf
 └── README.md
 ```
 
@@ -114,32 +114,11 @@ The ROS2 package additionally requires:
 ## Core implementation
 
 ```bash
+cd UKF-MAD-LIO
 mkdir build
 cd build
 cmake ..
 make -j
-```
-
----
-
-## ROS2 package
-
-Build the package inside a ROS2 workspace:
-
-```bash
-colcon build --symlink-install
-source install/setup.bash
-```
-Open the visualizer in another terminal:
-
-```bash
-rviz2
-```
-
-Then launch the UKF node:
-
-```bash
-ros2 run ukf_lio_rviz lio_rviz
 ```
 
 ---
@@ -213,21 +192,7 @@ Example
 
 ---
 
-# LiDAR–Inertial Odometry
-
-The project includes two executables.
-
-## UKF + MAD-ICP
-
-```bash
-./example_UKF_NEWCO <output_prefix> <trajectory_type>
-```
-
-This example demonstrates the fusion between the UKF and MAD-ICP.
-
----
-
-## Complete LiDAR-Inertial Pipeline
+# LiDAR–Inertial Odometry Pipeline
 
 ```bash
 ./LIO-UKF-MADICP <output_prefix> <trajectory_type>
@@ -288,6 +253,30 @@ The ROS2 package provides real-time visualization in RViz2, including:
 * estimated trajectory
 * poses
 * debugging information
+
+
+## ROS2 package
+
+Build the package inside a ROS2 workspace:
+
+```bash
+cd LIO_rviz
+colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
+source install/setup.bash
+```
+Open the visualizer in another terminal:
+
+```bash
+rviz2
+```
+
+Then add to visualization PointCloud2 and Odometry.
+
+After setting the rviz environment you can launch the UKF node:
+
+```bash
+ros2 run ukf_lio_rviz lio_rviz
+```
 
 ---
 
